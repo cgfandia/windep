@@ -4,6 +4,7 @@
 
 #include "cxxopts/cxxopts.hpp"
 #include "pe.h"
+#include "version.h"
 #include "walker.h"
 
 int main(int argc, char **argv) {
@@ -19,11 +20,16 @@ int main(int argc, char **argv) {
         cxxopts::value<bool>()->default_value("false"))(
         "d,delayed", "Enable resolving of delayed imports",
         cxxopts::value<bool>()->default_value("false"))(
-        "h,help", "Print help", cxxopts::value<bool>()->default_value("false"));
+        "h,help", "Print help", cxxopts::value<bool>()->default_value("false"))(
+        "v,version", "Print version",
+        cxxopts::value<bool>()->default_value("false"));
     auto args = options.parse(argc, argv);
 
     if (args.count("help")) {
       std::cout << options.help() << std::endl;
+      return 0;
+    } else if (args.count("version")) {
+      std::cout << VERSION << std::endl;
       return 0;
     }
 
