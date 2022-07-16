@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  code-style:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Instal Dependencies
+        run: pip install cpplint
+
+      - name: Run cpplint
+        run: cpplint --exclude=third/* --recursive --filter=-build/c++11,-build/include_subdir .
+
+  tests:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure Build for amd64
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Install Dependencies
+        run: |
+          choco install OpenCppCoverage -y
+          echo "C:\Program Files\OpenCppCoverage" >> $env:GITHUB_PATH
+
+      - name: Build Debug
+        run: msbuild -p:Configuration=Debug /p:Platform=x64 -m
+
+      - name: Run Tests and Generate Code Coverage
+        run: OpenCppCoverage --sources windep --modules Build --export_type cobertura:codecoverage.xml -- Build\x64\Debug\tests\tests.exe
+
+      - name: Upload Report to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          flags: unittests
