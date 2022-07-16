@@ -1,10 +1,12 @@
+// copyright MIT License Copyright (c) 2021, Albert Farrakhov
+
 #pragma once
+#include <memory>
 #include <string>
 
-
-namespace dw {
+namespace windep {
 class Context {
-public:
+ public:
   virtual std::string String() const = 0;
   virtual void Merge(std::shared_ptr<Context> other);
   virtual size_t Hash() const;
@@ -12,7 +14,7 @@ public:
   virtual bool operator==(const Context& other) const;
 };
 
-template<typename T>
+template <typename T>
 struct HashShared {
   std::size_t operator()(const std::shared_ptr<T>& ctx) const {
     if (ctx) {
@@ -22,10 +24,10 @@ struct HashShared {
   }
 };
 
-template<typename T>
+template <typename T>
 struct EqShared {
   bool operator()(const std::shared_ptr<T>& l,
-    const std::shared_ptr<T>& r) const {
+                  const std::shared_ptr<T>& r) const {
     if (l && r) {
       return *l == *r;
     }
@@ -33,14 +35,14 @@ struct EqShared {
   }
 };
 
-template<typename T>
+template <typename T>
 struct LtShared {
   bool operator()(const std::shared_ptr<T>& l,
-    const std::shared_ptr<T>& r) const {
+                  const std::shared_ptr<T>& r) const {
     if (l && r) {
       return *l < *r;
     }
     return l < r;
   }
 };
-} // dw namespace
+}  // namespace windep

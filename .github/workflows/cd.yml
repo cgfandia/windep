@@ -1,0 +1,38 @@
+name: CD
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-release:
+    strategy:
+      matrix:
+        platform: [x64, ARM64]
+        configuration: [Release, Release-static]
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure Cross-platform Build
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64_arm64
+
+      - name: Build Artifacts
+        run: msbuild -p:"Configuration=${{ matrix.configuration }};Platform=${{ matrix.platform }}" -m
+
+      - name: Compress
+        env:
+          ARTIFACT: windep-${{ github.event.release.tag_name }}-${{ matrix.configuration }}-${{ matrix.platform }}.zip
+        run: Compress-Archive -Path "Build\${{ matrix.platform }}\${{ matrix.configuration }}\windep" -DestinationPath "$ARTIFACT"
+
+      - name: Upload
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ env.ARTIFACT }}
+          asset_name: ${{ env.ARTIFACT }}
+          asset_content_type: application/zip

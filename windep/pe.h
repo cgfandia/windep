@@ -1,28 +1,32 @@
-#pragma once
-#include "image.h"
-#include "exceptions.h"
+// copyright MIT License Copyright (c) 2021, Albert Farrakhov
 
+#pragma once
 #include <Windows.h>
+#include <winternl.h>
+
+#include <memory>
+#include <regex>
 #include <string>
 #include <unordered_map>
-#include <regex>
 
+#include "exceptions.h"
+#include "image.h"
 
-namespace dw::image::pe {
+namespace windep::image::pe {
 class PeImport : public Import {
-public:
+ public:
   PeImport(const std::string& name, const std::string& alias);
 };
-
 
 class PeFunction : public Function {
   std::string name_;
   std::weak_ptr<PeImport> import_;
-public:
-  explicit PeFunction(const std::string& name, std::shared_ptr<PeImport> import);
+
+ public:
+  explicit PeFunction(const std::string& name,
+                      std::shared_ptr<PeImport> import);
   std::string String() const override;
 };
-
 
 class LoadedImage {
   HMODULE image_handle_ = nullptr;
@@ -34,15 +38,16 @@ class LoadedImage {
   } nt_headers_;
   PIMAGE_SECTION_HEADER section_headers_ = nullptr;
   PIMAGE_SECTION_HEADER last_section_ = nullptr;
-public:
-  LoadedImage(const std::string& name);
+
+ public:
+  explicit LoadedImage(const std::string& name);
   virtual ~LoadedImage();
   LoadedImage(const LoadedImage&) = delete;
   LoadedImage(LoadedImage&&) = delete;
   LoadedImage& operator=(const LoadedImage&) = delete;
   LoadedImage& operator=(LoadedImage&&) = delete;
   const bool IsPe64() const;
-  template<typename T>
+  template <typename T>
   T MapOffset(ULONGLONG offset) const {
     return reinterpret_cast<T>(static_cast<PBYTE>(image_view_) + offset);
   }
@@ -50,84 +55,84 @@ public:
   const PIMAGE_DATA_DIRECTORY DataDirectory() const;
 };
 
-
 class PeImage : public Image {
   bool delayed_;
   void ParseImports(const LoadedImage& loaded_image);
   void ParseDelayedImports(const LoadedImage& loaded_image);
-public:
+
+ public:
   PeImage(const std::string& name, bool delayed);
   void Parse() override;
 };
 
-
 class PeImageFactory : public ImageContextFactory {
   bool delayed_ = false;
-public:
-  PeImageFactory(bool delayed = false);
+
+ public:
+  explicit PeImageFactory(bool delayed = false);
   std::shared_ptr<Image> Create(const std::string& image) override;
 };
 
-
-
-#define MKPTR(p1,p2) ((DWORD_PTR)(p1) + (DWORD_PTR)(p2))
+#define MKPTR(p1, p2) ((DWORD_PTR)(p1) + (DWORD_PTR)(p2))
 
 typedef struct _stripped_peb32 {
-  BYTE    unused1[0x038];
-  PVOID   ApiSet;
-  BYTE    unused2[0x1AC];
+  BYTE unused1[0x038];
+  PVOID ApiSet;
+  BYTE unused2[0x1AC];
 } PEB32;
 
 typedef struct _stripped_peb64 {
-  BYTE    unused1[0x068];
-  PVOID   ApiSet;
-  BYTE    unused2[0x23C];
+  BYTE unused1[0x068];
+  PVOID ApiSet;
+  BYTE unused2[0x23C];
 } PEB64;
 
 typedef struct _PROCESS_BASIC_INFORMATION {
-  PVOID       Reserved1;
-  LPVOID      PebBaseAddress;
-  PVOID       Reserved2[2];
-  ULONG_PTR   UniqueProcessId;
-  PVOID       Reserved3;
+  PVOID Reserved1;
+  LPVOID PebBaseAddress;
+  PVOID Reserved2[2];
+  ULONG_PTR UniqueProcessId;
+  PVOID Reserved3;
 } PROCESS_BASIC_INFORMATION;
 
 typedef struct _api_set_value_entry {
-  DWORD           Flags;
-  DWORD           ImportModuleName;
-  WORD            ImportModuleNameLength;
-  DWORD           HostModuleName;
-  WORD            HostModuleNameLength;
+  DWORD Flags;
+  DWORD ImportModuleName;
+  WORD ImportModuleNameLength;
+  DWORD HostModuleName;
+  WORD HostModuleNameLength;
 } API_SET_VALUE_ENTRY;
 
 typedef struct _api_set_value_array {
-  DWORD               Flags;
-  DWORD               NumberOfHosts;
+  DWORD Flags;
+  DWORD NumberOfHosts;
   API_SET_VALUE_ENTRY Array[1];
 } API_SET_VALUE_ARRAY;
 
 typedef struct _api_set_namespace_entry {
-  DWORD           Flags;
-  DWORD           NameOffset;
-  DWORD           NameLength;
-  DWORD           NameHashSize;
-  DWORD           DataOffset;
-  DWORD           HostsCount;
+  DWORD Flags;
+  DWORD NameOffset;
+  DWORD NameLength;
+  DWORD NameHashSize;
+  DWORD DataOffset;
+  DWORD HostsCount;
 } API_SET_NAMESPACE_ENTRY;
 
 typedef struct _api_set_namespace_array {
-  DWORD           Version;
-  DWORD           Size;
-  DWORD           Flags;
-  DWORD           Count;
-  DWORD           NamespaceEntriesOffset;
-  DWORD           HashEntriesOffset;
-  DWORD           HashMultiplier;
-  API_SET_NAMESPACE_ENTRY   Entries[1];
+  DWORD Version;
+  DWORD Size;
+  DWORD Flags;
+  DWORD Count;
+  DWORD NamespaceEntriesOffset;
+  DWORD HashEntriesOffset;
+  DWORD HashMultiplier;
+  API_SET_NAMESPACE_ENTRY Entries[1];
 } API_SET_NAMESPACE_ARRAY;
 
-typedef NTSTATUS(__stdcall *fnNtQueryInformationProcess)(HANDLE ProcessHandle, DWORD ProcessInformationClass, PVOID ProcessInformation, ULONG ProcessInformationLength, PULONG ReturnLength);
-
+using pfnNtQueryInformationProcess =
+    NTSTATUS(NTAPI*)(HANDLE ProcessHandle, DWORD ProcessInformationClass,
+                     PVOID ProcessInformation, ULONG ProcessInformationLength,
+                     PULONG ReturnLength);
 
 class PeMeta {
   static PeMeta* instance_;
@@ -141,13 +146,15 @@ class PeMeta {
   PeMeta& operator=(const PeMeta&) = delete;
   PeMeta(PeMeta&&) = delete;
   PeMeta& operator=(PeMeta&&) = delete;
-  template<typename T>
+  template <typename T>
   T MapNamespaces(uintptr_t offset) {
-    return reinterpret_cast<T>(reinterpret_cast<PBYTE>(namespace_array_) + offset);
+    return reinterpret_cast<T>(reinterpret_cast<PBYTE>(namespace_array_) +
+                               offset);
   }
-public:
+
+ public:
   static PeMeta& Instance();
   std::string VirtualToLogic(const std::string& virtual_dll);
   std::wstring VersionlessDllName(const std::wstring& name);
 };
-} // dw namespace
+}  // namespace windep::image::pe
