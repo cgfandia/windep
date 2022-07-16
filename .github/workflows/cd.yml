@@ -25,7 +25,9 @@ jobs:
       - name: Compress
         env:
           ARTIFACT: windep-${{ github.event.release.tag_name }}-${{ matrix.configuration }}-${{ matrix.platform }}.zip
-        run: Compress-Archive -Path "Build\${{ matrix.platform }}\${{ matrix.configuration }}\windep" -DestinationPath "$env:ARTIFACT"
+        run: |
+          Compress-Archive -Path "Build\${{ matrix.platform }}\${{ matrix.configuration }}\windep" -DestinationPath "$env:ARTIFACT"
+          echo "ARTIFACT=${{ env.ARTIFACT }}" >> $GITHUB_ENV
 
       - name: Upload
         uses: actions/upload-release-asset@v1
