@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
   code-style:
@@ -36,9 +37,10 @@ jobs:
         run: msbuild -p:Configuration=Debug /p:Platform=x64 -m
 
       - name: Run Tests and Generate Code Coverage
-        run: OpenCppCoverage --sources windep --modules Build --export_type cobertura:codecoverage.xml -- Build\x64\Debug\tests\tests.exe
+        run: OpenCppCoverage --sources windep --modules Build --export_type cobertura:coverage.xml -- Build\x64\Debug\tests\tests.exe
 
       - name: Upload Report to Codecov
         uses: codecov/codecov-action@v3
         with:
           flags: unittests
+          file: coverage.xml
