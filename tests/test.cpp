@@ -7,24 +7,36 @@
 #include "exceptions.h"
 #include "image.h"
 #include "pe.h"
+#include "traversing.h"
 #include "utils.h"
-#include "walker.h"
+#include "view.h"
+#include "writer.h"
 
-TEST_CASE("with imports", "[image]") {
+class NullWriter : public windep::Writer {
+  void Write(const std::string& str) override {}
+  void Write(const std::stringstream& str_stream) override {}
+};
+
+TEST_CASE("with_imports", "[image]") {
   windep::image::pe::PeImage image{"kernel32.dll", true};
   REQUIRE_NOTHROW(image.Parse());
   REQUIRE(image.Imports().size() > 0);
 }
 
-TEST_CASE("without imports", "[image]") {
+TEST_CASE("without_imports", "[image]") {
   windep::image::pe::PeImage image{"ntdll.dll", true};
   REQUIRE_NOTHROW(image.Parse());
   REQUIRE(image.Imports().size() == 0);
 }
 
-TEST_CASE("not found", "[image]") {
+TEST_CASE("not_found", "[image]") {
   windep::image::pe::PeImage image{"unknown_image_name.dll", true};
-  REQUIRE_THROWS_AS(image.Parse(), windep::exc::NotFoundException);
+  REQUIRE_THROWS_AS(image.Parse(), windep::exc::NotFound);
+  try {
+    image.Parse();
+  } catch (windep::exc::NotFound& e) {
+    e.what();
+  }
 }
 
 TEST_CASE("versionless", "[image]") {
@@ -34,16 +46,52 @@ TEST_CASE("versionless", "[image]") {
   REQUIRE(versionless == L"api-ms-onecoreuap-print-render");
 }
 
-TEST_CASE("with dependencies", "[dependencies]") {
+TEST_CASE("with_dependencies", "[dependencies]") {
   auto img_fc = std::make_shared<windep::image::pe::PeImageFactory>();
   auto dep_fc = windep::image::ImageDependencyFactory{"explorer.exe", img_fc};
   auto root_dep = dep_fc.Create();
   REQUIRE(root_dep->Children().size() > 0);
 }
 
-TEST_CASE("without dependencies", "[dependencies]") {
+TEST_CASE("without_dependencies", "[dependencies]") {
   auto img_fc = std::make_shared<windep::image::pe::PeImageFactory>();
   auto dep_fc = windep::image::ImageDependencyFactory{"ntdll.dll", img_fc};
   auto root_dep = dep_fc.Create();
   REQUIRE(root_dep->Children().size() == 0);
+}
+
+std::shared_ptr<windep::Dependency<windep::image::Image>> CreateTree(
+    const std::string& binary, bool delayed = false) {
+  const auto img_fc =
+      std::make_shared<windep::image::pe::PeImageFactory>(delayed);
+  windep::image::ImageDependencyFactory dep_factory{binary, img_fc};
+  return dep_factory.Create();
+}
+
+TEST_CASE("ascii_output", "[view]") {
+  auto root = CreateTree("kernel32.dll", false);
+  auto stdout_writer = std::make_shared<windep::StdoutWriter>();
+  auto view = windep::view::Factory{"ascii"}.Create(true, 2);
+  REQUIRE_NOTHROW(view->Show(root, stdout_writer));
+}
+
+TEST_CASE("json_output", "[view]") {
+  auto root = CreateTree("kernel32.dll", false);
+  auto stdout_writer = std::make_shared<windep::StdoutWriter>();
+  auto view = windep::view::Factory{"json"}.Create(true, 2);
+  REQUIRE_NOTHROW(view->Show(root, stdout_writer));
+}
+
+TEST_CASE("ascii_delayed_null", "[view]") {
+  auto root = CreateTree("kernel32.dll", true);
+  auto null = std::make_shared<NullWriter>();
+  auto view = windep::view::Factory{"ascii"}.Create(true, 2);
+  REQUIRE_NOTHROW(view->Show(root, null));
+}
+
+TEST_CASE("json_delayed_null", "[view]") {
+  auto root = CreateTree("kernel32.dll", true);
+  auto null = std::make_shared<NullWriter>();
+  auto view = windep::view::Factory{"json"}.Create(true, 2);
+  REQUIRE_NOTHROW(view->Show(root, null));
 }

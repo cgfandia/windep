@@ -1,6 +1,7 @@
 // copyright MIT License Copyright (c) 2021, Albert Farrakhov
-
 #include "pe.h"
+
+#include <utility>
 
 #include "exceptions.h"
 #include "utils.h"
@@ -8,14 +9,15 @@
 namespace windep::image::pe {
 API_SET_NAMESPACE_ARRAY* GetApiSetHeader() {
   static pfnNtQueryInformationProcess NtQueryInformationProcess =
-      (pfnNtQueryInformationProcess)GetProcAddress(LoadLibraryW(L"ntdll.dll"),
-                                                   "NtQueryInformationProcess");
+      reinterpret_cast<pfnNtQueryInformationProcess>(GetProcAddress(
+          LoadLibraryW(L"ntdll.dll"), "NtQueryInformationProcess"));
   if (!NtQueryInformationProcess) return NULL;
 
   PROCESS_BASIC_INFORMATION info;
   if (NtQueryInformationProcess(GetCurrentProcess(), 0, &info, sizeof(info),
-                                NULL) != S_OK)
+                                NULL) != S_OK) {
     return NULL;
+  }
 
 #if defined(_WIN64)
   return reinterpret_cast<API_SET_NAMESPACE_ARRAY*>(
@@ -29,11 +31,15 @@ API_SET_NAMESPACE_ARRAY* GetApiSetHeader() {
 }
 
 void PeImage::Parse() {
-  imports_.clear();
   LoadedImage loaded_image{name_};
-  ParseImports(loaded_image);
+  auto imports = ParseImports(loaded_image);
   if (delayed_) {
-    ParseDelayedImports(loaded_image);
+    auto delayed_imports = ParseDelayedImports(loaded_image);
+    imports.insert(delayed_imports.begin(), delayed_imports.end());
+  }
+  ClearImports();
+  for (auto import : imports) {
+    AddImport(import);
   }
 }
 
@@ -41,111 +47,109 @@ LoadedImage::LoadedImage(const std::string& name) {
   image_handle_ =
       ::LoadLibraryExA(name.c_str(), nullptr, DONT_RESOLVE_DLL_REFERENCES);
   if (!image_handle_) {
-    throw exc::NotFoundException("Cannot open '" + name + "' image");
+    throw exc::NotFound("Cannot open '" + name + "' image");
   }
   image_view_ =
       reinterpret_cast<LPVOID>(reinterpret_cast<uintptr_t>(image_handle_) &
                                (static_cast<uintptr_t>(-1) << 1));
   dos_header_ = static_cast<PIMAGE_DOS_HEADER>(image_view_);
   if (dos_header_->e_magic != IMAGE_DOS_SIGNATURE) {
-    throw exc::ValidationException("Image '" + name + "' is not executable");
+    throw exc::Validation("Image '" + name + "' is not executable");
   }
   nt_headers_.x32 = reinterpret_cast<PIMAGE_NT_HEADERS32>(
       static_cast<PBYTE>(image_view_) + dos_header_->e_lfanew);
-  if (IsPe64())
+  if (IsPe64()) {
     nt_headers_.x64 = reinterpret_cast<PIMAGE_NT_HEADERS64>(
         static_cast<PBYTE>(image_view_) + dos_header_->e_lfanew);
+  }
   section_headers_ = IMAGE_FIRST_SECTION(nt_headers_.x32);
 }
 
-void PeImage::ParseImports(const LoadedImage& loaded_image) {
-  auto import_section =
-      loaded_image.DataDirectory()[IMAGE_DIRECTORY_ENTRY_IMPORT];
-  if (import_section.Size) {
-    auto import_descriptor = loaded_image.MapOffset<PIMAGE_IMPORT_DESCRIPTOR>(
-        import_section.VirtualAddress);
-    while (import_descriptor->OriginalFirstThunk &&
-           !(import_descriptor->OriginalFirstThunk & 1)) {
-      auto virtual_name =
-          loaded_image.MapOffset<PCSTR>(import_descriptor->Name);
+Image::ImportsCollection PeImage::ParseImports(const LoadedImage& img) const {
+  Image::ImportsCollection imports;
+  auto section = img.DataDirectory()[IMAGE_DIRECTORY_ENTRY_IMPORT];
+  if (section.Size) {
+    auto descr = img.Read<PIMAGE_IMPORT_DESCRIPTOR>(section.VirtualAddress);
+    while (descr->OriginalFirstThunk && !(descr->OriginalFirstThunk & 1)) {
+      auto virtual_name = img.Read<PCSTR>(descr->Name);
       if (virtual_name) {
         auto logic_name = PeMeta::Instance().VirtualToLogic(virtual_name);
         auto import = std::make_shared<PeImport>(logic_name, virtual_name);
-        AddImport(import);
-        const auto find_import_funcs = [&import, &loaded_image, this](
-                                           auto thunk,
-                                           const auto ordinal_flag) {
-          if (thunk) {
-            while (thunk->u1.AddressOfData) {
-              if (!(thunk->u1.Ordinal & ordinal_flag)) {
-                auto func_meta = loaded_image.MapOffset<PIMAGE_IMPORT_BY_NAME>(
-                    thunk->u1.AddressOfData);
-                if (func_meta) {
-                  import->AddFunction(
-                      std::make_shared<PeFunction>(func_meta->Name, import));
+        const auto find_import_funcs =
+            [&import, &img, this](auto thunk, const auto ordinal_flag) {
+              if (thunk) {
+                while (thunk->u1.AddressOfData) {
+                  if (!(thunk->u1.Ordinal & ordinal_flag)) {
+                    auto func_meta = img.Read<PIMAGE_IMPORT_BY_NAME>(
+                        thunk->u1.AddressOfData);
+                    if (func_meta) {
+                      import->AddFunction(std::make_shared<PeFunction>(
+                          func_meta->Name, import));
+                    }
+                  }
+                  thunk++;
                 }
               }
-              thunk++;
-            }
-          }
-        };
-        if (loaded_image.IsPe64()) {
-          find_import_funcs(loaded_image.MapOffset<PIMAGE_THUNK_DATA64>(
-                                import_descriptor->OriginalFirstThunk),
-                            IMAGE_ORDINAL_FLAG64);
+            };
+        if (img.IsPe64()) {
+          find_import_funcs(
+              img.Read<PIMAGE_THUNK_DATA64>(descr->OriginalFirstThunk),
+              IMAGE_ORDINAL_FLAG64);
         } else {
-          find_import_funcs(loaded_image.MapOffset<PIMAGE_THUNK_DATA32>(
-                                import_descriptor->OriginalFirstThunk),
-                            IMAGE_ORDINAL_FLAG32);
+          find_import_funcs(
+              img.Read<PIMAGE_THUNK_DATA32>(descr->OriginalFirstThunk),
+              IMAGE_ORDINAL_FLAG32);
         }
+        imports.insert(import);
       }
-      import_descriptor++;
+      descr++;
     }
   }
+  return imports;
 }
 
-void PeImage::ParseDelayedImports(const LoadedImage& loaded_image) {
-  auto delayed_import_section =
-      loaded_image.DataDirectory()[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT];
-  if (delayed_import_section.Size) {
-    auto descriptor = loaded_image.MapOffset<PIMAGE_DELAYLOAD_DESCRIPTOR>(
-        delayed_import_section.VirtualAddress);
-    while (descriptor->DllNameRVA) {
-      auto virtual_name = loaded_image.MapOffset<PCSTR>(descriptor->DllNameRVA);
+Image::ImportsCollection PeImage::ParseDelayedImports(
+    const LoadedImage& img) const {
+  Image::ImportsCollection imports;
+  auto section = img.DataDirectory()[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT];
+  if (section.Size) {
+    auto descr = img.Read<PIMAGE_DELAYLOAD_DESCRIPTOR>(section.VirtualAddress);
+    while (descr->DllNameRVA) {
+      auto virtual_name = img.Read<PCSTR>(descr->DllNameRVA);
       if (virtual_name) {
         auto logic_name = PeMeta::Instance().VirtualToLogic(virtual_name);
         auto import = std::make_shared<PeImport>(logic_name, virtual_name);
-        AddImport(import);
-        const auto find_import_funcs = [&import, &loaded_image, this](
-                                           auto thunk,
-                                           const auto ordinal_flag) {
-          if (thunk) {
-            while (thunk->u1.AddressOfData) {
-              if (!(thunk->u1.Ordinal & ordinal_flag)) {
-                auto func_meta = loaded_image.MapOffset<PIMAGE_IMPORT_BY_NAME>(
-                    thunk->u1.AddressOfData);
-                if (func_meta) {
-                  import->AddFunction(
-                      std::make_shared<PeFunction>(func_meta->Name, import));
+        const auto find_import_funcs =
+            [&import, &img, this](auto thunk, const auto ordinal_flag) {
+              if (thunk) {
+                while (thunk->u1.AddressOfData) {
+                  if (!(thunk->u1.Ordinal & ordinal_flag)) {
+                    auto func_meta = img.Read<PIMAGE_IMPORT_BY_NAME>(
+                        thunk->u1.AddressOfData);
+                    if (func_meta) {
+                      import->AddFunction(std::make_shared<PeFunction>(
+                          func_meta->Name, import));
+                    }
+                  }
+                  thunk++;
                 }
               }
-              thunk++;
-            }
-          }
-        };
-        if (loaded_image.IsPe64()) {
-          find_import_funcs(loaded_image.MapOffset<PIMAGE_THUNK_DATA64>(
-                                descriptor->ImportNameTableRVA),
-                            IMAGE_ORDINAL_FLAG64);
+            };
+        if (img.IsPe64()) {
+          find_import_funcs(
+              img.Read<PIMAGE_THUNK_DATA64>(descr->ImportNameTableRVA),
+              IMAGE_ORDINAL_FLAG64);
         } else {
-          find_import_funcs(loaded_image.MapOffset<PIMAGE_THUNK_DATA32>(
-                                descriptor->ImportNameTableRVA),
-                            IMAGE_ORDINAL_FLAG32);
+          find_import_funcs(
+              img.Read<PIMAGE_THUNK_DATA32>(descr->ImportNameTableRVA),
+              IMAGE_ORDINAL_FLAG32);
         }
+        imports.insert(import);
       }
-      descriptor++;
+      descr++;
     }
   }
+  return imports;
 }
 
 PeImage::PeImage(const std::string& name, bool delayed)
@@ -156,9 +160,7 @@ const PIMAGE_FILE_HEADER LoadedImage::FileHeader() const {
 }
 
 const PIMAGE_DATA_DIRECTORY LoadedImage::DataDirectory() const {
-  if (IsPe64()) {
-    return nt_headers_.x64->OptionalHeader.DataDirectory;
-  }
+  if (IsPe64()) return nt_headers_.x64->OptionalHeader.DataDirectory;
   return nt_headers_.x32->OptionalHeader.DataDirectory;
 }
 
@@ -184,6 +186,8 @@ std::string PeFunction::String() const {
   return name_;
 }
 
+const std::string& PeFunction::Name() const { return name_; }
+
 PeImageFactory::PeImageFactory(bool delayed) : delayed_(delayed) {}
 
 std::shared_ptr<Image> PeImageFactory::Create(const std::string& image) {
@@ -206,17 +210,13 @@ PeMeta::PeMeta() {
   dll_name_re = std::wregex(L"(\\S+)(-l\\d+-\\d+-\\d+)", std::regex::optimize);
 }
 
-PeMeta::~PeMeta() {
-  if (instance_) {
-    delete instance_;
-    instance_ = nullptr;
-  }
-}
+PeMeta::~PeMeta() {}
 
 std::string PeMeta::VirtualToLogic(const std::string& virtual_dll) {
   if (namespace_array_ == NULL || (!utils::startswith(virtual_dll, "api-") &&
-                                   !utils::startswith(virtual_dll, "ext-")))
+                                   !utils::startswith(virtual_dll, "ext-"))) {
     return virtual_dll;
+  }
 
   auto logic_cache_it = logic_dll_cache_.find(virtual_dll);
   if (logic_cache_it != logic_dll_cache_.end()) {
@@ -233,24 +233,28 @@ std::string PeMeta::VirtualToLogic(const std::string& virtual_dll) {
   logic_dll = VersionlessDllName(logic_dll);
 
   for (uint32_t i = 0; i < namespace_array_->Count; ++i, ++ns_entry) {
-    std::wstring top_module(ns_entry->NameLength, L'\0');
-    memcpy(top_module.data(),
-           MapNamespaces<const wchar_t*>(ns_entry->NameOffset),
-           ns_entry->NameLength);
-    top_module = VersionlessDllName(std::wstring(top_module.c_str()));
-    if (top_module == logic_dll) {
-      auto hosts = MapNamespaces<API_SET_VALUE_ENTRY*>(ns_entry->DataOffset);
-      for (int j = ns_entry->HostsCount - 1; j >= 0; j--) {
-        auto host = hosts[j];
-        auto logic_length = host.HostModuleNameLength / sizeof(wchar_t);
-        if (logic_length) {
-          logic_dll.resize(logic_length, L'\0');
-          memcpy(logic_dll.data(),
-                 MapNamespaces<const void*>(host.HostModuleName),
-                 logic_length * sizeof(wchar_t));
-          auto logic_ansii = utils::w2a(logic_dll);
-          logic_dll_cache_[virtual_dll] = logic_ansii;
-          return logic_ansii;
+    if (ns_entry->NameLength) {
+      std::wstring top_module(ns_entry->NameLength, L'\0');
+      const auto top_ptr = ReadNamespace<const wchar_t*>(ns_entry->NameOffset);
+      memcpy(top_module.data(), top_ptr, ns_entry->NameLength);
+      top_module = VersionlessDllName(std::wstring(top_module.c_str()));
+      if (top_module == logic_dll) {
+        auto hosts = ReadNamespace<API_SET_VALUE_ENTRY*>(ns_entry->DataOffset);
+        // Search from the end
+        for (int j = ns_entry->HostsCount - 1; j >= 0; j--) {
+          auto host = hosts[j];
+          auto name_len = host.HostModuleNameLength / sizeof(wchar_t);
+          if (name_len) {
+            const auto name_ptr =
+                ReadNamespace<const void*>(host.HostModuleName);
+            logic_dll.resize(name_len, L'\0');
+            auto dst =
+                static_cast<void*>(const_cast<wchar_t*>(logic_dll.data()));
+            memcpy(dst, name_ptr, name_len * sizeof(wchar_t));
+            auto logic_ansii = utils::w2a(logic_dll);
+            logic_dll_cache_[virtual_dll] = logic_ansii;
+            return logic_ansii;
+          }
         }
       }
     }

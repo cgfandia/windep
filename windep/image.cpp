@@ -4,8 +4,10 @@
 
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "exceptions.h"
 
@@ -35,6 +37,8 @@ void Image::AddImport(std::shared_ptr<Import> import) {
   imports_.emplace(import);
 }
 
+void Image::ClearImports() { imports_.clear(); }
+
 std::shared_ptr<Dependency<Image>> ImageDependencyFactory::CreateRecursive(
     const std::string& image, std::shared_ptr<Dependency<Image>> parent) {
   auto dependency = std::make_shared<Dependency<Image>>();
@@ -43,19 +47,17 @@ std::shared_ptr<Dependency<Image>> ImageDependencyFactory::CreateRecursive(
   dependency->AppendParent(parent);
   visited_[image] = dependency;
   for (const auto& import : image_ctx->Imports()) {
-    if (import->Name() != image) {
-      try {
-        auto child_dep = visited_.find(import->Name());
-        if (child_dep == visited_.end()) {
-          auto child = CreateRecursive(import->Name(), dependency);
-          child->AppendParent(dependency);
-          dependency->AppendChild(child);
-        } else {
-          child_dep->second->AppendParent(dependency);
-          dependency->AppendChild(child_dep->second);
-        }
-      } catch (exc::WinDepException) {
+    try {
+      auto child_dep = visited_.find(import->Name());
+      if (child_dep == visited_.end()) {
+        auto child = CreateRecursive(import->Name(), dependency);
+        child->AppendParent(dependency);
+        dependency->AppendChild(child);
+      } else {
+        child_dep->second->AppendParent(dependency);
+        dependency->AppendChild(child_dep->second);
       }
+    } catch (exc::WinDepException) {
     }
   }
   return dependency;
@@ -69,21 +71,46 @@ std::shared_ptr<Dependency<Image>> ImageDependencyFactory::Create() {
   return CreateRecursive(root_);
 }
 
-TerminalImageTreeVisitor::TerminalImageTreeVisitor(bool import_functions)
-    : import_functions_(import_functions) {}
+AsciiTreeVisitor::AsciiTreeVisitor(std::shared_ptr<Writer> writer,
+                                   bool import_functions, uint8_t indent)
+    : writer_(writer), show_functions_(import_functions), indent_(indent) {}
 
-void TerminalImageTreeVisitor::Visit(std::shared_ptr<Dependency<Image>> node,
-                                     size_t height) {
-  std::string offset(height, ' ');
-  std::cout << offset << node->GetContext()->String() << std::endl;
-  if (import_functions_) {
+void AsciiTreeVisitor::Visit(std::shared_ptr<Dependency<Image>> node,
+                             size_t height) {
+  std::string offset(height * indent_, ' ');
+  std::stringstream output;
+  output << offset << node->GetContext()->String() << std::endl;
+  if (show_functions_) {
     for (const auto& import : node->GetContext()->Imports()) {
       for (const auto& func : import->Functions()) {
-        std::cout << offset << "- " << func->String() << std::endl;
+        output << offset << "- " << func->String() << std::endl;
       }
     }
   }
+  writer_->Write(output);
 }
+
+JsonTreeVisitor::JsonTreeVisitor(bool import_functions)
+    : show_functions_(import_functions) {}
+
+void JsonTreeVisitor::Visit(std::shared_ptr<Dependency<Image>> node,
+                            size_t height) {
+  json img_json = {{"imports", json({})}};
+  auto img = node->GetContext();
+  for (auto import : img->Imports()) {
+    json import_json = {{"alias", import->Alias()}};
+    if (show_functions_) {
+      std::vector<std::string> functions;
+      functions.reserve(import->Functions().size());
+      for (auto func : import->Functions()) functions.push_back(func->Name());
+      import_json["functions"] = std::move(functions);
+    }
+    img_json["imports"][import->Name()] = std::move(import_json);
+  }
+  json_[img->Name()] = std::move(img_json);
+}
+
+json& JsonTreeVisitor::GetJson() { return json_; }
 
 Import::Import(const std::string& name) : name_(name), alias_name_(name) {}
 

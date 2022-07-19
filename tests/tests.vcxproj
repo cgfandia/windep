@@ -24,6 +24,8 @@
     <ClCompile Include="..\windep\image.cpp" />
     <ClCompile Include="..\windep\pe.cpp" />
     <ClCompile Include="..\windep\utils.cpp" />
+    <ClCompile Include="..\windep\view.cpp" />
+    <ClCompile Include="..\windep\writer.cpp" />
     <ClCompile Include="test.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

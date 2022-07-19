@@ -8,11 +8,17 @@
 
 #include "context.h"
 #include "dependency.h"
-#include "walker.h"
+#include "json/json.hpp"
+#include "traversing.h"
+#include "writer.h"
 
 namespace windep {
 namespace image {
-class Function : public Context {};
+using nlohmann::json;
+class Function : public Context {
+ public:
+  virtual const std::string& Name() const = 0;
+};
 
 class Import : public Context {
  public:
@@ -53,6 +59,7 @@ class Image : public Context {
   virtual const std::string& Name() const;
   virtual const ImportsCollection& Imports() const;
   void AddImport(std::shared_ptr<Import> import);
+  void ClearImports();
 };
 
 class ImageContextFactory {
@@ -81,12 +88,25 @@ class ImageTreeVisitor : public TreeVisitor<Image> {
                      size_t height) = 0;
 };
 
-class TerminalImageTreeVisitor : public TreeVisitor<Image> {
-  bool import_functions_ = false;
+class AsciiTreeVisitor : public TreeVisitor<Image> {
+  std::shared_ptr<Writer> writer_;
+  bool show_functions_ = false;
+  uint8_t indent_;
 
  public:
-  explicit TerminalImageTreeVisitor(bool import_functions = false);
+  explicit AsciiTreeVisitor(std::shared_ptr<Writer> writer,
+                            bool import_functions = false, uint8_t indent = 2);
   void Visit(std::shared_ptr<Dependency<Image>> node, size_t height) override;
+};
+
+class JsonTreeVisitor : public TreeVisitor<Image> {
+  json json_;
+  bool show_functions_ = false;
+
+ public:
+  explicit JsonTreeVisitor(bool import_functions = false);
+  void Visit(std::shared_ptr<Dependency<Image>> node, size_t height) override;
+  json& GetJson();
 };
 }  // namespace image
 
