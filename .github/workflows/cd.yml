@@ -20,7 +20,7 @@ jobs:
           arch: amd64_arm64
 
       - name: Build Artifacts
-        run: msbuild -p:"Configuration=${{ matrix.configuration }};Platform=${{ matrix.platform }}" -m
+        run: msbuild -p:"Configuration=${{ matrix.configuration }};Platform=${{ matrix.platform }}" -p:EnableClangTidyCodeAnalysis=false -m
 
       - name: Compress
         env:
