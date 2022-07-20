@@ -7,6 +7,16 @@ Small utility to find all DLL dependencies of the Windows PE binary. It can be h
 
 ## Examples
 
+### DOT
+
+```shell
+windep -f dot windep.exe
+```
+
+![graphviz](/media/graphviz.svg)
+
+### JSON
+
 ```shell
 windep -f json -c kernel32.dll
 ```
@@ -54,7 +64,7 @@ windep.exe [OPTION...] <binary>
 
   -c, --functions   Enable functions output
   -d, --delayed     Enable delayed imports
-  -f, --format arg  Output format. Possible values: ascii, json (default:
+  -f, --format arg  Output format. Possible values: ascii, json, dot (default:
                     ascii)
   -t, --indent arg  Output rows indent (default: 2)
   -h, --help        Print help

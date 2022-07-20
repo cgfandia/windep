@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
         cxxopts::value<bool>()->default_value("false"))(
         "d,delayed", "Enable delayed imports",
         cxxopts::value<bool>()->default_value("false"))(
-        "f,format", "Output format. Possible values: ascii, json",
+        "f,format", "Output format. Possible values: ascii, json, dot",
         cxxopts::value<std::string>()->default_value("ascii"))(
         "t,indent", "Output rows indent",
         cxxopts::value<uint8_t>()->default_value("2"))(

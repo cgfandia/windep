@@ -68,30 +68,24 @@ std::shared_ptr<windep::Dependency<windep::image::Image>> CreateTree(
   return dep_factory.Create();
 }
 
-TEST_CASE("ascii_output", "[view]") {
+TEST_CASE("non_delayed", "[view,stdout]") {
   auto root = CreateTree("kernel32.dll", false);
   auto stdout_writer = std::make_shared<windep::StdoutWriter>();
-  auto view = windep::view::Factory{"ascii"}.Create(true, 2);
-  REQUIRE_NOTHROW(view->Show(root, stdout_writer));
+  auto ascii_view = windep::view::Factory{"ascii"}.Create(true, 2);
+  auto json_view = windep::view::Factory{"json"}.Create(true, 2);
+  auto dot_view = windep::view::Factory{"dot"}.Create();
+  REQUIRE_NOTHROW(ascii_view->Show(root, stdout_writer));
+  REQUIRE_NOTHROW(json_view->Show(root, stdout_writer));
+  REQUIRE_NOTHROW(dot_view->Show(root, stdout_writer));
 }
 
-TEST_CASE("json_output", "[view]") {
-  auto root = CreateTree("kernel32.dll", false);
-  auto stdout_writer = std::make_shared<windep::StdoutWriter>();
-  auto view = windep::view::Factory{"json"}.Create(true, 2);
-  REQUIRE_NOTHROW(view->Show(root, stdout_writer));
-}
-
-TEST_CASE("ascii_delayed_null", "[view]") {
+TEST_CASE("delayed", "[view,null]") {
   auto root = CreateTree("kernel32.dll", true);
   auto null = std::make_shared<NullWriter>();
-  auto view = windep::view::Factory{"ascii"}.Create(true, 2);
-  REQUIRE_NOTHROW(view->Show(root, null));
-}
-
-TEST_CASE("json_delayed_null", "[view]") {
-  auto root = CreateTree("kernel32.dll", true);
-  auto null = std::make_shared<NullWriter>();
-  auto view = windep::view::Factory{"json"}.Create(true, 2);
-  REQUIRE_NOTHROW(view->Show(root, null));
+  auto ascii_view = windep::view::Factory{"ascii"}.Create(true, 2);
+  auto json_view = windep::view::Factory{"json"}.Create(true, 2);
+  auto dot_view = windep::view::Factory{"dot"}.Create();
+  REQUIRE_NOTHROW(ascii_view->Show(root, null));
+  REQUIRE_NOTHROW(json_view->Show(root, null));
+  REQUIRE_NOTHROW(dot_view->Show(root, null));
 }

@@ -108,6 +108,17 @@ class JsonTreeVisitor : public TreeVisitor<Image> {
   void Visit(std::shared_ptr<Dependency<Image>> node, size_t height) override;
   json& GetJson();
 };
+
+class DotTreeVisitor : public TreeVisitor<Image> {
+  std::string statements_;
+  uint8_t indent_;
+  std::string FormatId(std::shared_ptr<Context> ctx) const;
+
+ public:
+  explicit DotTreeVisitor(uint8_t indent = 2) : indent_(indent) {}
+  void Visit(std::shared_ptr<Dependency<Image>> node, size_t height) override;
+  std::string Dot();
+};
 }  // namespace image
 
 template <>
