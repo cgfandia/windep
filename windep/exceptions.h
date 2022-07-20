@@ -36,11 +36,11 @@ class WinException : public WinDepException {
   using WinDepException::WinDepException;
 };
 
-class NotFoundException : public WinDepException {
+class NotFound : public WinDepException {
   using WinDepException::WinDepException;
 };
 
-class ValidationException : public WinDepException {
+class Validation : public WinDepException {
   using WinDepException::WinDepException;
 };
 }  // namespace exc

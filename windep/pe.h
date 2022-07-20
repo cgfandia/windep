@@ -26,6 +26,7 @@ class PeFunction : public Function {
   explicit PeFunction(const std::string& name,
                       std::shared_ptr<PeImport> import);
   std::string String() const override;
+  const std::string& Name() const override;
 };
 
 class LoadedImage {
@@ -48,7 +49,7 @@ class LoadedImage {
   LoadedImage& operator=(LoadedImage&&) = delete;
   const bool IsPe64() const;
   template <typename T>
-  T MapOffset(ULONGLONG offset) const {
+  T Read(ULONGLONG offset) const {
     return reinterpret_cast<T>(static_cast<PBYTE>(image_view_) + offset);
   }
   const PIMAGE_FILE_HEADER FileHeader() const;
@@ -57,8 +58,9 @@ class LoadedImage {
 
 class PeImage : public Image {
   bool delayed_;
-  void ParseImports(const LoadedImage& loaded_image);
-  void ParseDelayedImports(const LoadedImage& loaded_image);
+  Image::ImportsCollection ParseImports(const LoadedImage& loaded_image) const;
+  Image::ImportsCollection ParseDelayedImports(
+      const LoadedImage& loaded_image) const;
 
  public:
   PeImage(const std::string& name, bool delayed);
@@ -147,7 +149,7 @@ class PeMeta {
   PeMeta(PeMeta&&) = delete;
   PeMeta& operator=(PeMeta&&) = delete;
   template <typename T>
-  T MapNamespaces(uintptr_t offset) {
+  T ReadNamespace(uintptr_t offset) {
     return reinterpret_cast<T>(reinterpret_cast<PBYTE>(namespace_array_) +
                                offset);
   }

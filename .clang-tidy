@@ -1,0 +1,4 @@
+Checks: "-*,google-*,clang-analyzer-*"
+WarningsAsErrors: -*,google-*,clang-analyzer-*
+HeaderFilterRegex: windep/.*\.h$
+FormatStyle: file

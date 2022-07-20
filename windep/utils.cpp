@@ -27,15 +27,14 @@ std::string w2a(const std::wstring& wide) {
   if (!required_size) {
     auto last_error = ::GetLastError();
     if (last_error == ERROR_NO_UNICODE_TRANSLATION) {
-      throw exc::ValidationException(
-          "Unable to translate wide char string to ansii");
+      throw exc::Validation("Unable to translate wide char string to ansii");
     }
     return "";
   }
   std::string ansii(required_size, '\0');
-  ::WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide.data(),
-                        static_cast<int>(wide.size()), ansii.data(),
-                        static_cast<int>(ansii.size()), 0, 0);
+  ::WideCharToMultiByte(
+      CP_UTF8, WC_ERR_INVALID_CHARS, wide.data(), static_cast<int>(wide.size()),
+      const_cast<LPSTR>(ansii.data()), static_cast<int>(ansii.size()), 0, 0);
   return ansii;
 }
 
@@ -46,14 +45,14 @@ std::wstring a2w(const std::string& ansii) {
   if (!required_size) {
     auto last_error = ::GetLastError();
     if (last_error == ERROR_NO_UNICODE_TRANSLATION) {
-      throw exc::ValidationException(
-          "Unable to translate ansii to wide char string");
+      throw exc::Validation("Unable to translate ansii to wide char string");
     }
     return L"";
   }
   std::wstring wide(required_size, L'\0');
   ::MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, ansii.data(),
-                        static_cast<int>(ansii.size()), wide.data(),
+                        static_cast<int>(ansii.size()),
+                        const_cast<LPWSTR>(wide.data()),
                         static_cast<int>(wide.size()));
   return wide;
 }
