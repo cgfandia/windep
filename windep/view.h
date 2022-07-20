@@ -54,4 +54,10 @@ class DotView : public View {
   void Show(std::shared_ptr<Dependency<image::Image>>,
             std::shared_ptr<Writer>) override;
 };
+
+class CsvView : public View {
+ public:
+  void Show(std::shared_ptr<Dependency<image::Image>>,
+            std::shared_ptr<Writer>) override;
+};
 }  // namespace windep::view

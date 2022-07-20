@@ -5,7 +5,31 @@
 
 Small utility to find all DLL dependencies of the Windows PE binary. It can be helpful in terms of security and debugging.
 
+## Features
+
+- Delayed imports
+- Virtual DLL resolving, [Runtime DLL name resolution: ApiSetSchema - Part I](https://blog.quarkslab.com/runtime-dll-name-resolution-apisetschema-part-i.html)
+- Various output formats:
+  - Tree or ASCII
+  - DOT or Graphviz
+  - JSON
+  - CSV
+
 ## Examples
+
+### Tree/ASCII
+
+```shell
+windep kernel32.dll
+```
+
+```
+kernel32.dll
+  kernelbase.dll
+    kernelbase.dll
+    ntdll.dll
+  ntdll.dll
+```
 
 ### DOT
 
@@ -57,6 +81,20 @@ windep -f json -c kernel32.dll
 }
 ```
 
+### CSV
+
+```shell
+windep -f csv kernel32.dll
+```
+
+```csv
+Source,Target
+kernel32.dll,kernelbase.dll
+kernel32.dll,ntdll.dll
+kernelbase.dll,kernelbase.dll
+kernelbase.dll,ntdll.dll
+```
+
 ## Usage
 
 ```
@@ -64,8 +102,7 @@ windep.exe [OPTION...] <binary>
 
   -c, --functions   Enable functions output
   -d, --delayed     Enable delayed imports
-  -f, --format arg  Output format. Possible values: ascii, json, dot (default:
-                    ascii)
+  -f, --format arg  Output format. Possible values: ascii, json, dot, csv (default: ascii)
   -t, --indent arg  Output rows indent (default: 2)
   -h, --help        Print help
   -v, --version     Print version

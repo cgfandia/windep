@@ -74,9 +74,11 @@ TEST_CASE("non_delayed", "[view,stdout]") {
   auto ascii_view = windep::view::Factory{"ascii"}.Create(true, 2);
   auto json_view = windep::view::Factory{"json"}.Create(true, 2);
   auto dot_view = windep::view::Factory{"dot"}.Create();
+  auto csv_view = windep::view::Factory{"csv"}.Create();
   REQUIRE_NOTHROW(ascii_view->Show(root, stdout_writer));
   REQUIRE_NOTHROW(json_view->Show(root, stdout_writer));
   REQUIRE_NOTHROW(dot_view->Show(root, stdout_writer));
+  REQUIRE_NOTHROW(csv_view->Show(root, stdout_writer));
 }
 
 TEST_CASE("delayed", "[view,null]") {
@@ -85,7 +87,8 @@ TEST_CASE("delayed", "[view,null]") {
   auto ascii_view = windep::view::Factory{"ascii"}.Create(true, 2);
   auto json_view = windep::view::Factory{"json"}.Create(true, 2);
   auto dot_view = windep::view::Factory{"dot"}.Create();
+  auto csv_view = windep::view::Factory{"csv"}.Create();
   REQUIRE_NOTHROW(ascii_view->Show(root, null));
   REQUIRE_NOTHROW(json_view->Show(root, null));
-  REQUIRE_NOTHROW(dot_view->Show(root, null));
+  REQUIRE_NOTHROW(csv_view->Show(root, null));
 }

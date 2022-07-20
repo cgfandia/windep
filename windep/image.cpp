@@ -110,7 +110,7 @@ void JsonTreeVisitor::Visit(std::shared_ptr<Dependency<Image>> node,
   json_[img->Name()] = std::move(img_json);
 }
 
-json& JsonTreeVisitor::GetJson() { return json_; }
+json& JsonTreeVisitor::Json() { return json_; }
 
 void DotTreeVisitor::Visit(std::shared_ptr<Dependency<Image>> node,
                            size_t height) {
@@ -131,6 +131,15 @@ std::string DotTreeVisitor::FormatId(std::shared_ptr<Context> ctx) const {
 std::string DotTreeVisitor::Dot() {
   return "digraph windep {\n" + statements_ + "}\n";
 }
+
+void CsvTreeVisitor::Visit(std::shared_ptr<Dependency<Image>> node,
+                           size_t height) {
+  for (auto import : node->GetContext()->Imports()) {
+    lines_ += node->GetContext()->Name() + ',' + import->Name() + '\n';
+  }
+}
+
+std::string CsvTreeVisitor::Csv() { return "Source,Target\n" + lines_; }
 
 Import::Import(const std::string& name) : name_(name), alias_name_(name) {}
 
