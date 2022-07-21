@@ -53,28 +53,35 @@ windep -f json -c kernel32.dll
         "imports": {
           "kernelbase.dll": {
             "alias": "KERNELBASE.dll",
-            "functions": ["AppContainerFreeMemory", "..."]
+            "functions": ["AppContainerFreeMemory", "..."],
+            "unresolved": false
           },
           "ntdll.dll": {
             "alias": "api-ms-win-core-rtlsupport-l1-1-0.dll",
-            "functions": ["RtlAddFunctionTable", "..."]
+            "functions": ["RtlAddFunctionTable", "..."],
+            "unresolved": false
           }
-        }
+        },
+        "path": "C:\\Windows\\System32\\KERNEL32.DLL"
       },
       "kernelbase.dll": {
         "imports": {
           "kernelbase.dll": {
             "alias": "api-ms-win-eventing-provider-l1-1-0.dll",
-            "functions": ["EventActivityIdControl", "..."]
+            "functions": ["EventActivityIdControl", "..."],
+            "unresolved": false
           },
           "ntdll.dll": {
             "alias": "ntdll.dll",
-            "functions": ["CsrAllocateCaptureBuffer", "..."]
+            "functions": ["CsrAllocateCaptureBuffer", "..."],
+            "unresolved": false
           }
-        }
+        },
+        "path": "C:\\Windows\\System32\\KERNELBASE.dll"
       },
       "ntdll.dll": {
-        "imports": {}
+        "imports": {},
+        "path": "C:\\Windows\\SYSTEM32\\ntdll.dll"
       }
     }
   }

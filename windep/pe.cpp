@@ -32,6 +32,7 @@ API_SET_NAMESPACE_ARRAY* GetApiSetHeader() {
 
 void PeImage::Parse() {
   LoadedImage loaded_image{name_};
+  path_ = std::move(loaded_image.Path());
   auto imports = ParseImports(loaded_image);
   if (delayed_) {
     auto delayed_imports = ParseDelayedImports(loaded_image);
@@ -43,7 +44,7 @@ void PeImage::Parse() {
   }
 }
 
-LoadedImage::LoadedImage(const std::string& name) {
+LoadedImage::LoadedImage(const std::string& name) : name_(name) {
   image_handle_ =
       ::LoadLibraryExA(name.c_str(), nullptr, DONT_RESOLVE_DLL_REFERENCES);
   if (!image_handle_) {
@@ -162,6 +163,21 @@ const PIMAGE_FILE_HEADER LoadedImage::FileHeader() const {
 const PIMAGE_DATA_DIRECTORY LoadedImage::DataDirectory() const {
   if (IsPe64()) return nt_headers_.x64->OptionalHeader.DataDirectory;
   return nt_headers_.x32->OptionalHeader.DataDirectory;
+}
+
+std::wstring LoadedImage::Path() const {
+  std::vector<wchar_t> path(MAX_PATH, L'\0');
+  auto result = ::GetModuleFileNameW(image_handle_, path.data(),
+                                     static_cast<DWORD>(path.size()));
+  if (result > path.size()) {
+    path.resize(static_cast<size_t>(result));
+    result = ::GetModuleFileNameW(image_handle_, path.data(),
+                                  static_cast<DWORD>(path.size()));
+  }
+  if (!result) {
+    throw exc::NotFound("Failed to get module path: " + name_);
+  }
+  return std::wstring(path.data());
 }
 
 LoadedImage::~LoadedImage() {

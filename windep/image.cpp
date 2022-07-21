@@ -34,10 +34,14 @@ const std::string& Image::Name() const { return name_; }
 const Image::ImportsCollection& Image::Imports() const { return imports_; }
 
 void Image::AddImport(std::shared_ptr<Import> import) {
-  imports_.emplace(import);
+  imports_.insert(import);
 }
 
 void Image::ClearImports() { imports_.clear(); }
+
+const std::filesystem::path& Image::Path() const { return path_; }
+
+void Image::SetPath(const std::wstring& path) { path_ = path; }
 
 std::shared_ptr<Dependency<Image>> ImageDependencyFactory::CreateRecursive(
     const std::string& image, std::shared_ptr<Dependency<Image>> parent) {
@@ -46,7 +50,7 @@ std::shared_ptr<Dependency<Image>> ImageDependencyFactory::CreateRecursive(
   dependency->SetContext(image_ctx);
   dependency->AppendParent(parent);
   visited_[image] = dependency;
-  for (const auto& import : image_ctx->Imports()) {
+  for (auto import : image_ctx->Imports()) {
     try {
       auto child_dep = visited_.find(import->Name());
       if (child_dep == visited_.end()) {
@@ -57,7 +61,9 @@ std::shared_ptr<Dependency<Image>> ImageDependencyFactory::CreateRecursive(
         child_dep->second->AppendParent(dependency);
         dependency->AppendChild(child_dep->second);
       }
-    } catch (exc::WinDepException) {
+    } catch (const exc::WinDepException& e) {
+      std::cerr << e.what() << std::endl;
+      import->SetUnresolved(true);
     }
   }
   return dependency;
@@ -72,15 +78,15 @@ std::shared_ptr<Dependency<Image>> ImageDependencyFactory::Create() {
 }
 
 AsciiTreeVisitor::AsciiTreeVisitor(std::shared_ptr<Writer> writer,
-                                   bool import_functions, uint8_t indent)
-    : writer_(writer), show_functions_(import_functions), indent_(indent) {}
+                                   bool functions, uint8_t indent)
+    : writer_(writer), functions_(functions), indent_(indent) {}
 
 void AsciiTreeVisitor::Visit(std::shared_ptr<Dependency<Image>> node,
                              size_t height) {
   std::string offset(height * indent_, ' ');
   std::stringstream output;
   output << offset << node->GetContext()->String() << std::endl;
-  if (show_functions_) {
+  if (functions_) {
     for (const auto& import : node->GetContext()->Imports()) {
       for (const auto& func : import->Functions()) {
         output << offset << "- " << func->String() << std::endl;
@@ -90,16 +96,16 @@ void AsciiTreeVisitor::Visit(std::shared_ptr<Dependency<Image>> node,
   writer_->Write(output);
 }
 
-JsonTreeVisitor::JsonTreeVisitor(bool import_functions)
-    : show_functions_(import_functions) {}
+JsonTreeVisitor::JsonTreeVisitor(bool functions) : functions_(functions) {}
 
 void JsonTreeVisitor::Visit(std::shared_ptr<Dependency<Image>> node,
                             size_t height) {
-  json img_json = {{"imports", json({})}};
   auto img = node->GetContext();
+  json img_json = {{"path", img->Path().u8string()}, {"imports", json({})}};
   for (auto import : img->Imports()) {
-    json import_json = {{"alias", import->Alias()}};
-    if (show_functions_) {
+    json import_json = {{"alias", import->Alias()},
+                        {"unresolved", import->IsUnresolved()}};
+    if (functions_) {
       std::vector<std::string> functions;
       functions.reserve(import->Functions().size());
       for (auto func : import->Functions()) functions.push_back(func->Name());
@@ -158,6 +164,8 @@ const std::string& Import::Name() const { return name_; }
 
 const std::string& Import::Alias() const { return alias_name_; }
 
+bool Import::IsUnresolved() const { return unresolved_; }
+
 std::string Import::String() const { return Name(); }
 
 void Import::Merge(std::shared_ptr<Context> other) {
@@ -171,6 +179,8 @@ const Import::FunctionsCollection& Import::Functions() const {
 }
 
 void Import::AddFunction(std::shared_ptr<Function> func) {
-  functions_.emplace(func);
+  functions_.insert(func);
 }
+
+void Import::SetUnresolved(bool enable) { unresolved_ = enable; }
 }  // namespace windep::image
