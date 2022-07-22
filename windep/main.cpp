@@ -19,14 +19,16 @@ int main(int argc, char **argv) {
     options.parse_positional({"image"});
     options.add_options()("i,image", "Binary image",
                           cxxopts::value<std::string>())(
-        "c,functions", "Enable functions output",
+        "f,functions", "Enable functions output",
         cxxopts::value<bool>()->default_value("false"))(
         "d,delayed", "Enable delayed imports",
         cxxopts::value<bool>()->default_value("false"))(
-        "f,format", "Output format. Possible values: ascii, json, dot",
+        "F,format", "Output format. Possible values: ascii, json, dot",
         cxxopts::value<std::string>()->default_value("ascii"))(
-        "t,indent", "Output rows indent",
+        "I,indent", "Output rows indent",
         cxxopts::value<uint8_t>()->default_value("2"))(
+        "o,output", "File output",
+        cxxopts::value<std::string>()->default_value(""))(
         "h,help", "Print help", cxxopts::value<bool>()->default_value("false"))(
         "v,version", "Print version",
         cxxopts::value<bool>()->default_value("false"));
@@ -45,13 +47,15 @@ int main(int argc, char **argv) {
     const auto &format = args["format"].as<std::string>();
     const auto functions = args["functions"].as<bool>();
     const auto indent = args["indent"].as<uint8_t>();
+    const auto &output = args["output"].as<std::string>();
     const auto pe_image_factory =
         std::make_shared<windep::image::pe::PeImageFactory>(is_delayed);
     windep::image::ImageDependencyFactory dep_factory{image, pe_image_factory};
     auto root = dep_factory.Create();
-    auto stdout_writer = std::make_shared<windep::StdoutWriter>();
     auto view = windep::view::Factory{format}.Create(functions, indent);
-    view->Show(root, stdout_writer);
+    auto writer =
+        windep::writer::StreamFactory().Create(windep::utils::a2w(output));
+    view->Show(root, writer);
   } catch (const std::exception &e) {
     std::cerr << "[-] " << e.what() << std::endl;
     return 1;

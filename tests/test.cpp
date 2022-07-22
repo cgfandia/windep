@@ -1,4 +1,6 @@
 // copyright MIT License Copyright (c) 2021, Albert Farrakhov
+
+#include <filesystem>
 #include <memory>
 
 #include "catch2/catch_amalgamated.hpp"
@@ -12,7 +14,7 @@
 #include "view.h"
 #include "writer.h"
 
-class NullWriter : public windep::Writer {
+class NullWriter : public windep::writer::Writer {
   void Write(const std::string& str) override {}
   void Write(const std::stringstream& str_stream) override {}
 };
@@ -68,27 +70,23 @@ std::shared_ptr<windep::Dependency<windep::image::Image>> CreateTree(
   return dep_factory.Create();
 }
 
-TEST_CASE("non_delayed", "[view,stdout]") {
-  auto root = CreateTree("kernel32.dll", false);
-  auto stdout_writer = std::make_shared<windep::StdoutWriter>();
+TEST_CASE("matrix", "[view,stdout,file,null]") {
+  const std::string binary = "kernel32.dll";
+  auto root = CreateTree(binary, false);
+  auto root_delayed = CreateTree(binary, true);
   auto ascii_view = windep::view::Factory{"ascii"}.Create(true, 2);
   auto json_view = windep::view::Factory{"json"}.Create(true, 2);
   auto dot_view = windep::view::Factory{"dot"}.Create();
   auto csv_view = windep::view::Factory{"csv"}.Create();
-  REQUIRE_NOTHROW(ascii_view->Show(root, stdout_writer));
-  REQUIRE_NOTHROW(json_view->Show(root, stdout_writer));
-  REQUIRE_NOTHROW(dot_view->Show(root, stdout_writer));
-  REQUIRE_NOTHROW(csv_view->Show(root, stdout_writer));
-}
-
-TEST_CASE("delayed", "[view,null]") {
-  auto root = CreateTree("kernel32.dll", true);
-  auto null = std::make_shared<NullWriter>();
-  auto ascii_view = windep::view::Factory{"ascii"}.Create(true, 2);
-  auto json_view = windep::view::Factory{"json"}.Create(true, 2);
-  auto dot_view = windep::view::Factory{"dot"}.Create();
-  auto csv_view = windep::view::Factory{"csv"}.Create();
-  REQUIRE_NOTHROW(ascii_view->Show(root, null));
-  REQUIRE_NOTHROW(json_view->Show(root, null));
-  REQUIRE_NOTHROW(csv_view->Show(root, null));
+  auto stdout_writer = windep::writer::StreamFactory().Create(L"");
+  auto tmp_file = std::filesystem::temp_directory_path() / "windep_file_output";
+  auto file_writer = windep::writer::StreamFactory().Create(tmp_file.wstring());
+  auto null_writer = std::make_shared<NullWriter>();
+  for (auto view : {ascii_view, json_view, dot_view, csv_view}) {
+    for (auto writer : {stdout_writer, file_writer}) {
+      REQUIRE_NOTHROW(view->Show(root, writer));
+    }
+    REQUIRE_NOTHROW(view->Show(root_delayed, null_writer));
+  }
+  REQUIRE(std::filesystem::file_size(tmp_file) > 0);
 }

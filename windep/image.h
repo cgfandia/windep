@@ -96,12 +96,12 @@ class ImageTreeVisitor : public TreeVisitor<Image> {
 };
 
 class AsciiTreeVisitor : public TreeVisitor<Image> {
-  std::shared_ptr<Writer> writer_;
+  std::shared_ptr<writer::Writer> writer_;
   bool functions_ = false;
   uint8_t indent_;
 
  public:
-  explicit AsciiTreeVisitor(std::shared_ptr<Writer> writer,
+  explicit AsciiTreeVisitor(std::shared_ptr<writer::Writer> writer,
                             bool functions = false, uint8_t indent = 2);
   void Visit(std::shared_ptr<Dependency<Image>> node, size_t height) override;
 };

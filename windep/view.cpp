@@ -22,7 +22,7 @@ std::shared_ptr<View> Factory::Create(bool functions, uint8_t indent) {
 }
 
 void AsciiView::Show(std::shared_ptr<Dependency<image::Image>> root,
-                     std::shared_ptr<Writer> writer) {
+                     std::shared_ptr<writer::Writer> writer) {
   auto visitor =
       std::make_shared<image::AsciiTreeVisitor>(writer, functions_, indent_);
   Dfs<decltype(root)::element_type::Context> dfs{DfsDirection::kToLeaf};
@@ -30,7 +30,7 @@ void AsciiView::Show(std::shared_ptr<Dependency<image::Image>> root,
 }
 
 void JsonView::Show(std::shared_ptr<Dependency<image::Image>> root,
-                    std::shared_ptr<Writer> writer) {
+                    std::shared_ptr<writer::Writer> writer) {
   auto visitor = std::make_shared<image::JsonTreeVisitor>(functions_);
   Bfs<decltype(root)::element_type::Context> bfs;
   bfs.Traverse(root, visitor);
@@ -41,7 +41,7 @@ void JsonView::Show(std::shared_ptr<Dependency<image::Image>> root,
 }
 
 void DotView::Show(std::shared_ptr<Dependency<image::Image>> root,
-                   std::shared_ptr<Writer> writer) {
+                   std::shared_ptr<writer::Writer> writer) {
   auto visitor = std::make_shared<image::DotTreeVisitor>(indent_);
   Bfs<decltype(root)::element_type::Context> bfs;
   bfs.Traverse(root, visitor);
@@ -49,7 +49,7 @@ void DotView::Show(std::shared_ptr<Dependency<image::Image>> root,
 }
 
 void CsvView::Show(std::shared_ptr<Dependency<image::Image>> root,
-                   std::shared_ptr<Writer> writer) {
+                   std::shared_ptr<writer::Writer> writer) {
   auto visitor = std::make_shared<image::CsvTreeVisitor>();
   Bfs<decltype(root)::element_type::Context> bfs;
   bfs.Traverse(root, visitor);

@@ -13,7 +13,7 @@ namespace windep::view {
 class View {
  public:
   virtual void Show(std::shared_ptr<Dependency<image::Image>>,
-                    std::shared_ptr<Writer>) = 0;
+                    std::shared_ptr<writer::Writer>) = 0;
 };
 
 class Factory {
@@ -32,7 +32,7 @@ class AsciiView : public View {
   explicit AsciiView(bool functions, uint8_t indent)
       : functions_(functions), indent_(indent) {}
   void Show(std::shared_ptr<Dependency<image::Image>>,
-            std::shared_ptr<Writer>) override;
+            std::shared_ptr<writer::Writer>) override;
 };
 
 class JsonView : public View {
@@ -43,7 +43,7 @@ class JsonView : public View {
   explicit JsonView(bool functions, uint8_t indent)
       : functions_(functions), indent_(indent) {}
   void Show(std::shared_ptr<Dependency<image::Image>>,
-            std::shared_ptr<Writer>) override;
+            std::shared_ptr<writer::Writer>) override;
 };
 
 class DotView : public View {
@@ -52,12 +52,12 @@ class DotView : public View {
  public:
   explicit DotView(uint8_t indent = 2) : indent_(indent) {}
   void Show(std::shared_ptr<Dependency<image::Image>>,
-            std::shared_ptr<Writer>) override;
+            std::shared_ptr<writer::Writer>) override;
 };
 
 class CsvView : public View {
  public:
   void Show(std::shared_ptr<Dependency<image::Image>>,
-            std::shared_ptr<Writer>) override;
+            std::shared_ptr<writer::Writer>) override;
 };
 }  // namespace windep::view

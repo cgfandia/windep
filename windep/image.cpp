@@ -61,8 +61,7 @@ std::shared_ptr<Dependency<Image>> ImageDependencyFactory::CreateRecursive(
         child_dep->second->AppendParent(dependency);
         dependency->AppendChild(child_dep->second);
       }
-    } catch (const exc::WinDepException& e) {
-      std::cerr << e.what() << std::endl;
+    } catch (exc::WinDepException) {
       import->SetUnresolved(true);
     }
   }
@@ -77,7 +76,7 @@ std::shared_ptr<Dependency<Image>> ImageDependencyFactory::Create() {
   return CreateRecursive(root_);
 }
 
-AsciiTreeVisitor::AsciiTreeVisitor(std::shared_ptr<Writer> writer,
+AsciiTreeVisitor::AsciiTreeVisitor(std::shared_ptr<writer::Writer> writer,
                                    bool functions, uint8_t indent)
     : writer_(writer), functions_(functions), indent_(indent) {}
 
