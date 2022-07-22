@@ -2,6 +2,7 @@
 #include "pe.h"
 
 #include <utility>
+#include <vector>
 
 #include "exceptions.h"
 #include "utils.h"
