@@ -39,6 +39,7 @@ class LoadedImage {
   } nt_headers_;
   PIMAGE_SECTION_HEADER section_headers_ = nullptr;
   PIMAGE_SECTION_HEADER last_section_ = nullptr;
+  std::string name_;
 
  public:
   explicit LoadedImage(const std::string& name);
@@ -54,10 +55,11 @@ class LoadedImage {
   }
   const PIMAGE_FILE_HEADER FileHeader() const;
   const PIMAGE_DATA_DIRECTORY DataDirectory() const;
+  std::wstring Path() const;
 };
 
 class PeImage : public Image {
-  bool delayed_;
+  bool delayed_ = false;
   Image::ImportsCollection ParseImports(const LoadedImage& loaded_image) const;
   Image::ImportsCollection ParseDelayedImports(
       const LoadedImage& loaded_image) const;
@@ -68,7 +70,7 @@ class PeImage : public Image {
 };
 
 class PeImageFactory : public ImageContextFactory {
-  bool delayed_ = false;
+  bool delayed_;
 
  public:
   explicit PeImageFactory(bool delayed = false);

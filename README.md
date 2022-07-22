@@ -34,7 +34,7 @@ kernel32.dll
 ### DOT
 
 ```shell
-windep -f dot windep.exe
+windep -F dot windep.exe
 ```
 
 ![graphviz](/media/graphviz.svg)
@@ -42,7 +42,7 @@ windep -f dot windep.exe
 ### JSON
 
 ```shell
-windep -f json -c kernel32.dll
+windep -f -F json kernel32.dll
 ```
 
 ```json
@@ -53,28 +53,35 @@ windep -f json -c kernel32.dll
         "imports": {
           "kernelbase.dll": {
             "alias": "KERNELBASE.dll",
-            "functions": ["AppContainerFreeMemory", "..."]
+            "functions": ["AppContainerFreeMemory", "..."],
+            "unresolved": false
           },
           "ntdll.dll": {
             "alias": "api-ms-win-core-rtlsupport-l1-1-0.dll",
-            "functions": ["RtlAddFunctionTable", "..."]
+            "functions": ["RtlAddFunctionTable", "..."],
+            "unresolved": false
           }
-        }
+        },
+        "path": "C:\\Windows\\System32\\KERNEL32.DLL"
       },
       "kernelbase.dll": {
         "imports": {
           "kernelbase.dll": {
             "alias": "api-ms-win-eventing-provider-l1-1-0.dll",
-            "functions": ["EventActivityIdControl", "..."]
+            "functions": ["EventActivityIdControl", "..."],
+            "unresolved": false
           },
           "ntdll.dll": {
             "alias": "ntdll.dll",
-            "functions": ["CsrAllocateCaptureBuffer", "..."]
+            "functions": ["CsrAllocateCaptureBuffer", "..."],
+            "unresolved": false
           }
-        }
+        },
+        "path": "C:\\Windows\\System32\\KERNELBASE.dll"
       },
       "ntdll.dll": {
-        "imports": {}
+        "imports": {},
+        "path": "C:\\Windows\\SYSTEM32\\ntdll.dll"
       }
     }
   }
@@ -84,7 +91,7 @@ windep -f json -c kernel32.dll
 ### CSV
 
 ```shell
-windep -f csv kernel32.dll
+windep -F csv kernel32.dll
 ```
 
 ```csv
@@ -100,10 +107,11 @@ kernelbase.dll,ntdll.dll
 ```
 windep.exe [OPTION...] <binary>
 
-  -c, --functions   Enable functions output
+  -f, --functions   Enable functions output
   -d, --delayed     Enable delayed imports
-  -f, --format arg  Output format. Possible values: ascii, json, dot, csv (default: ascii)
-  -t, --indent arg  Output rows indent (default: 2)
+  -F, --format arg  Output format. Possible values: ascii, json, dot, csv (default: ascii)
+  -I, --indent arg  Output rows indent (default: 2)
+  -o, --output arg  File output (default: "")
   -h, --help        Print help
   -v, --version     Print version
 ```

@@ -1,6 +1,7 @@
 // copyright MIT License Copyright (c) 2021, Albert Farrakhov
 
 #pragma once
+#include <filesystem>
 #include <memory>
 #include <set>
 #include <string>
@@ -29,6 +30,7 @@ class Import : public Context {
   std::string name_;
   std::string alias_name_;
   FunctionsCollection functions_;
+  bool unresolved_ = false;
 
  public:
   explicit Import(const std::string& name);
@@ -37,10 +39,12 @@ class Import : public Context {
   bool operator==(const Import& other) const;
   virtual const std::string& Name() const;
   virtual const std::string& Alias() const;
+  virtual bool IsUnresolved() const;
   std::string String() const override;
   void Merge(std::shared_ptr<Context> other) override;
   virtual const FunctionsCollection& Functions() const;
   virtual void AddFunction(std::shared_ptr<Function> func);
+  virtual void SetUnresolved(bool enable);
 };
 
 class Image : public Context {
@@ -50,6 +54,7 @@ class Image : public Context {
  protected:
   std::string name_;
   ImportsCollection imports_;
+  std::filesystem::path path_;
 
  public:
   explicit Image(const std::string& name);
@@ -60,6 +65,8 @@ class Image : public Context {
   virtual const ImportsCollection& Imports() const;
   void AddImport(std::shared_ptr<Import> import);
   void ClearImports();
+  const std::filesystem::path& Path() const;
+  void SetPath(const std::wstring& path);
 };
 
 class ImageContextFactory {
@@ -89,22 +96,22 @@ class ImageTreeVisitor : public TreeVisitor<Image> {
 };
 
 class AsciiTreeVisitor : public TreeVisitor<Image> {
-  std::shared_ptr<Writer> writer_;
-  bool show_functions_ = false;
+  std::shared_ptr<writer::Writer> writer_;
+  bool functions_ = false;
   uint8_t indent_;
 
  public:
-  explicit AsciiTreeVisitor(std::shared_ptr<Writer> writer,
-                            bool import_functions = false, uint8_t indent = 2);
+  explicit AsciiTreeVisitor(std::shared_ptr<writer::Writer> writer,
+                            bool functions = false, uint8_t indent = 2);
   void Visit(std::shared_ptr<Dependency<Image>> node, size_t height) override;
 };
 
 class JsonTreeVisitor : public TreeVisitor<Image> {
   json json_;
-  bool show_functions_ = false;
+  bool functions_ = false;
 
  public:
-  explicit JsonTreeVisitor(bool import_functions = false);
+  explicit JsonTreeVisitor(bool functions = false);
   void Visit(std::shared_ptr<Dependency<Image>> node, size_t height) override;
   json& Json();
 };
