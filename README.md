@@ -115,3 +115,7 @@ windep.exe [OPTION...] <binary>
   -h, --help        Print help
   -v, --version     Print version
 ```
+
+## Notes
+
+- Architecture of the windep.exe and analyzed binary should be the same
